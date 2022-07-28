@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo List App</title>
+
+    <style>
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        
+        li {
+            padding-bottom: 8px;
+        }
+
+        button.delete-todo {
+            color: red;
+            border: none;
+            background: none;
+        }
+
+        .category-list, .todo-list {
+            display: inline-block;
+            vertical-align: text-top;
+        }
+    </style>
+</head>
+<body>
+    <h3>Welcome to Todo List App</h3>
+
+    <div class="category-list">
+        <h4>Todo Categories</h4>
+        <ul>
+            {% for category in categories %}
+            <li data-id="{{ category.id }}">
+                <a href="/categories/{{ category.id }}/todolist">{{ category.name }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="todo-list">
+        <h4>
+            {% if category.name %}
+            {{ category.name }} List
+            {% else %}
+            My Todo List
+            {% endif %}
+        </h4>
+        <ul id="todolist">
+            {% for todo in todos %}
+            <li data-id="{{ todo.id }}">
+                <input type="checkbox" {% if todo.completed %} checked {% endif %} name="status" id="status">
+                {{ todo.description }}
+                <button class="delete-todo">&cross;</button>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+
+
+
+
+    <hr>
+
+    <form id="todoForm" action="/todos/create" method="post">
+        <div>
+            <label for="description">Task</label>
+            <input type="text" name="description" id="description">
+        </div><br>
+
+        <div>
+            <label for="category">Categories</label>
+            <select name="category" id="category">
+                {% for category in categories %}
+                <option value="{{ category.id }}">{{ category.name }}</option>
+                {% endfor %}
+            </select>
+        </div><br>
+
+        <button type="submit">Add Todo</button>
+    </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            var todolist = document.getElementById('todolist');
+
+            todolist.onclick = (e) => {
+                const el = e.target;
+                // console.log(el.getAttribute('class').toLowerCase());
+                if (el.tagName.toLowerCase() == 'button' && el.getAttribute('class').toLowerCase() == 'delete-todo') {
+                    let todo = el.parentElement;
+                    let todoId = todo.dataset['id'];
+                    fetch(`/todos/${todoId}/delete`, {
+                        method: 'DELETE',
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        todo.remove();
+                        console.log(data)
+                    })
+                    .catch(err => console.error(err));
+                }
+
+                if (el.tagName.toLowerCase() == 'input' && el.type.toLowerCase() == 'checkbox') {
+                    const checkbox = el;
+                    const isCompleted = checkbox.checked;
+                    const checkboxId = checkbox.parentElement.dataset['id'];
+                    const body = { status: isCompleted };
+
+                    fetch(`/todos/${checkboxId}/alt-status`, {
+                        method: 'POST',
+                        body: JSON.stringify(body)
+                    })
+                    .then(response => response.json())
+                    .then(data => console.log(data))
+                    .catch(err => console.error(err));
+                }
+            }
+
+            // Add Item
+            document.forms.namedItem('todoForm').onsubmit = (e) => {
+                e.preventDefault();
+                const description = e.target.description.value;
+                const category = e.target.category.value;
+                const body = {
+                    description,
+                    category
+                }
+
+                console.log(e.target);
+
+                fetch(e.target.action, {
+                    method: 'POST',
+                    body: JSON.stringify(body)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    let checkbox = document.createElement('input');
+                    checkbox.type = "checkbox";
+                    checkbox.name = "status";
+                    checkbox.id = "status";
+                    
+                    let button = document.createElement('button');
+                    button.setAttribute('class', 'delete-todo');
+                    button.innerHTML = "&cross;";
+
+                    const li = document.createElement('li');
+                    li.setAttribute('data-id', data.data.id);
+                    li.appendChild(checkbox);
+                    li.appendChild(document.createTextNode(' ' + data.data.description + ' '));
+                    li.appendChild(button);
+
+                    todolist.appendChild(li);
+
+                    e.target.reset();
+                })
+                .catch(error => console.error('error: ', error));
+            }
+        });
+    </script>
+</body>
+</html>
